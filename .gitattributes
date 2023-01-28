@@ -1,0 +1,39 @@
+## Handle all files not found below
+*		text=auto
+
+## Common binary file types
+*.docx 	binary
+*.exe 	binary
+*.jpg 	binary
+*.pdf 	binary
+*.png 	binary
+*.xlsx 	binary
+
+
+## MATLAB
+# Matlab source files
+# ============
+*.m         	text diff=matlab
+#*.mu            	 text diff=matlab
+
+# Matlab binary files
+*.fig 	binary
+*.mat 	binary
+*.mdl 	binary diff merge=mlAutoMerge
+*.mdlp 	binary
+*.mexa64 	binary
+*.mexw64 	binary
+*.mexmaci64 binary
+*.mlapp 	binary
+*.mldatx 	binary
+*.mlproj 	binary
+*.mlx 	binary
+*.p 		binary
+*.sfx 	binary
+*.sldd 	binary
+*.slreqx 	binary merge=mlAutoMerge
+*.slmx 	binary merge=mlAutoMerge
+*.sltx 	binary
+*.slxc 	binary
+*.slx 	binary merge=mlAutoMerge
+*.slxp 	binary
