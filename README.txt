@@ -28,10 +28,7 @@ Changelog:
 
 
 NOTE:
-DO NOT EDIT FILES DIRECTLY IN GOOGLE DRIVE!!!!!
-Make a local copy BEFORE running!!!
-I do have backup files if things go very bad, but I'd rather not have to resort to this.
-May eventually use git.
+To get the files necessary to run the example, see: https://drive.google.com/drive/folders/1sHEIUDBqLFUrPMYZHcszIxrgXEWvobvu?usp=sharing
 
 TODO: Help headers on:
 writeImage
