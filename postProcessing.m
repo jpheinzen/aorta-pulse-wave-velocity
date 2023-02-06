@@ -81,7 +81,8 @@
 
 npinterpH = 200;
 
-distanceinIn = 0.75;
+
+distanceinIn = 0.75;    % UPDATE THIS WITH DIAMETER OF TUBING
 distanceinM = 0.0254*distanceinIn;
 
 % load('example.mat')

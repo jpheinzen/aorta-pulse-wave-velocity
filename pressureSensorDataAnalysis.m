@@ -1,4 +1,5 @@
-ccc
+% ccc
+clear
 % Created by: 
 %   John-Paul Heinzen
 % Last updated:
@@ -17,11 +18,11 @@ filePath = ["20221214 Penrose tests/Run2 - 1in single 1200.mat";...
 "20221214 Penrose tests/Run10 - 0.625in single 1200.mat";...
 "20221214 Penrose tests/Run11 - 0.625in single 2000.mat";...
 "20221214 Penrose tests/Run12 - 0.625in single taped 1200.mat"];
-pSenseDistM = (31+19.5+19)/100;      % update this with distance in m between sensors
+% pSenseDistM = (31+19.5+19)/100;      % update this with distance in m between sensors
 pSenseDistM = (31)/100;      % update this with distance in m between sensors
 methodNum = 5;          % 1 to 5 --> different methods
 npinterpH = 200;        % probably keep around 200; another switch
-debug = false;           % true if you want to see graphs made by findDelay
+debug = false;          % true if you want to see graphs made by findDelay
 smoothFactor = 5;       % can change for methods 4 and 5. The larger the 
                         %   number, the more smooth the data. 4-10 is good
 
@@ -42,7 +43,10 @@ clear
 
 % filePath of .mat file
 filePath = ...
-"20221214 Penrose tests/Run4 - 1in single taped 1200.mat";
+    "20221214 Penrose tests/Run2 - 1in single 1200.mat";
+
+%     "20221214 Penrose tests/Run3 - 1in single 2000.mat";
+% "20221214 Penrose tests/Run4 - 1in single taped 1200.mat";
 % "20221214 Penrose tests/Run6 - 0.75in single 1200.mat";
 %     ["20221214 Penrose tests/Run2 - 1in single 1200.mat";
 % "20221214 Penrose tests/Run3 - 1in single 2000.mat";...
@@ -51,8 +55,9 @@ filePath = ...
 % "20221214 Penrose tests/Run10 - 0.625in single 1200.mat";...
 % "20221214 Penrose tests/Run11 - 0.625in single 2000.mat";...
 % "20221214 Penrose tests/Run12 - 0.625in single taped 1200.mat"];
-pSenseDistM = (31+19.5+19)/100;      % update this with distance in m between sensors
-methodNum = 2;          % 1 to 5 --> different methods
+% pSenseDistM = (31+19.5+19)/100;      % update this with distance in m between sensors
+pSenseDistM = (31)/100;      % update this with distance in m between sensors
+methodNum = 5;          % 1 to 5 --> different methods
 npinterpH = 200;        % probably keep around 200; another switch
 debug = true;           % true if you want to see graphs made by findDelay
 smoothFactor = 5;       % can change for methods 4 and 5. The larger the 

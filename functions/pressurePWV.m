@@ -5,7 +5,7 @@ arguments
     methodNum (1,1) = 1;
     npinterpH (1,1) = 200;
     debug (1,1) {mustBeNumericOrLogical} = false;
-    smoothFactor (1,1) {mustBePositive} = 10;
+    smoothFactor (1,1) {mustBePositive} = 5;
 end
 
 % Created by: 
@@ -21,8 +21,12 @@ load(fileName,'P_up','P_down')
 % finding fps of pressure data
 [~,fps] = min(abs(P_up(:,1)-1));
 
-% This is to adjust the fps to the correct one (repeated first value)
-fps = fps-2;
+% This is to adjust the fps to the correct one (if repeated first value)
+if P_up(1,1) == P_up(2,1)
+    fps = fps-2;
+else
+    fps = fps-1;
+end
 
 % position value
 posVal = [0,pSenseDistM];

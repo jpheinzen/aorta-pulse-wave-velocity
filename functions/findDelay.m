@@ -7,7 +7,7 @@ arguments
     npinterpH (1,1) = 200;
     methodNum (1,1) = 1;
     debug (1,1) {mustBeNumericOrLogical} = false;
-    smoothFactor (1,1) {mustBePositive} = 10;
+    smoothFactor (1,1) {mustBePositive} = 5;
 end
 
 %% Info:
@@ -83,6 +83,16 @@ end
 
 smoothRange = round(fps*smoothFactor/100);
 
+% Flipping if the pulse goes down for some reason...
+if median(quantity) > mean(quantity)
+    fprintf('line %i was flipped\n',lineNum)
+    % flipping while maintaining old mean
+    quantity = -quantity + 2*mean(quantity);
+end
+
+
+% 4/6 smooth 1; 4 is slower but generally more accurate than 6
+% 5/7 smooth 2; 5 is slower but generally more accurate than 7
 switch methodNum
     case 1
         delay = findDelay1(quantity,lineNum,timeVal,fps,npinterpH,debug);
@@ -91,11 +101,21 @@ switch methodNum
     case 3
         delay = findDelay3(quantity,lineNum,timeVal,fps,npinterpH,debug);
     case 4
-        % Same as (1), but smoothes the data first
+        % Same as (1), but smoothes the data first - Uses a double
+        % derivative method
         delay = findDelay4(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug);
     case 5
-        % Same as (2), but smoothes the data first
+        % Same as (2), but smoothes the data first - Uses a double
+        % derivative method
         delay = findDelay5(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug);
+    case 6
+        % Same as (1), but smoothes the data first - Uses a mean then
+        % derivative method
+        delay = findDelay6(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug);
+    case 7
+        % Same as (2), but smoothes the data first - Uses a mean then
+        % derivative method
+        delay = findDelay7(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug);
     otherwise
         error('findDelay:incorrectmethodNum', ...
             'findDelay methodNum is set to %i, which is not valid.', ...
@@ -145,7 +165,8 @@ p = polyfit(timeVal(prei1:prei2),quantity(prei1:prei2),1);
 preSlope = p(1);
 preY = p(2);
 
-ytarget = quantity(i1)-(quantity(i2)-quantity(i1))/2;
+% ytarget = quantity(i1)-(quantity(i2)-quantity(i1))/2;
+ytarget = (mean(quantity(prei1:prei2)) + 3*quantity(i1))/4;
 ilow = round(i1-(i2-i1)/2);
 [~,imid] = min(abs(quantity(ilow:i1)-ytarget));    % finds y-pos just below i1
 imid = imid + ilow;
@@ -207,13 +228,16 @@ end
 i5 = 2*i1-i2;
 i3 = i5+npinterpH/2;            % 1st guess using log assumption
 
-ytarget = (deriv1(i1)+deriv1(i7))/2;
-[~,imid] = min(abs(deriv1(i7:i1)-ytarget));    % finds y-pos between i1 and i7
+% ytarget = (deriv1(i1)+deriv1(i7))/2;
+% [~,imid] = min(abs(deriv1(i7:i1)-ytarget));    % finds y-pos between i1 and i7
+ytarget = (quantity(i1)+quantity(i7))/2;
+[~,imid] = min(abs(quantity(i7:i1)-ytarget));    % finds y-pos between i1 and i7
 imid = imid + i7;
 %     imid = round((i1+i7)/2);
 
 %----------
 % finding info about pre-pulse
+% use i1 instead of i2...??
 prei1 = i2 - 1.55*fps;
 prei2 = prei1+fps;
 if prei1 < 1
@@ -288,7 +312,8 @@ end
 %     ifinal = round((i3+i3)/2);
 % ifinal = i4;
 % ifinal = i6;
-ifinal = i10;
+ifinal = i8;
+% ifinal = i10;
 
 
 
@@ -449,15 +474,10 @@ function delay = findDelay4(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,d
 % WARNING: DO NOT RUN DEBUG MODE IN A LOOP
 
 % smooth the quantity
-sQuantity = zeros(length(quantity)-smoothRange,1);
+[sTimeVal,sQuantity] = derivSmooth(timeVal,quantity,smoothRange,fps);
+[sTimeVal,sQuantity] = derivSmooth(sTimeVal,sQuantity,smoothRange,fps);
 
-for qi = 1:length(sQuantity)   % Smoothing
-    sQuantity(qi) = mean(quantity(qi:qi+smoothRange));
-end
-
-sTimeVal = timeVal(1:length(sQuantity));
 delay = findDelay1(sQuantity,lineNum,sTimeVal,fps,npinterpH,debug);
-
 end
 
 % ----------------------------------------------------------------------- %
@@ -474,14 +494,96 @@ function delay = findDelay5(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,d
 % WARNING: DO NOT RUN DEBUG MODE IN A LOOP
 
 % smooth the quantity
-sQuantity = zeros(length(quantity)-smoothRange,1);
+[sTimeVal,sQuantity] = derivSmooth(timeVal,quantity,smoothRange,fps);
+[sTimeVal,sQuantity] = derivSmooth(sTimeVal,sQuantity,smoothRange,fps);
 
-for qi = 1:length(sQuantity)   % Smoothing
-    sQuantity(qi) = mean(quantity(qi:qi+smoothRange));
+delay = findDelay2(sQuantity,lineNum,sTimeVal,fps,npinterpH,debug);
 end
 
-sTimeVal = timeVal(1:length(sQuantity));
+% ----------------------------------------------------------------------- %
+
+% WARNING: DO NOT RUN DEBUG MODE IN A LOOP
+% More Complicated way to find the delay of lines.
+%   Many different ways to try to find delay were tried, and left.
+% -> Obviously this is very bloated and could be sped up?
+% NOTE: This method currently assumed 60bpm, but could be easily changed by
+% adding another variable
+function delay = findDelay6(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug)
+% NOTE: This method currently assumed 60bpm, but could be easily changed by
+% adding another variable
+% WARNING: DO NOT RUN DEBUG MODE IN A LOOP
+
+% smooth the quantity
+[sTimeVal,sQuantity] = meanSmooth(timeVal,quantity,smoothRange);
+[sTimeVal,sQuantity] = derivSmooth(sTimeVal,sQuantity,smoothRange,fps);
+
+delay = findDelay1(sQuantity,lineNum,sTimeVal,fps,npinterpH,debug);
+end
+
+% ----------------------------------------------------------------------- %
+
+% WARNING: DO NOT RUN DEBUG MODE IN A LOOP
+% More Complicated way to find the delay of lines.
+%   Many different ways to try to find delay were tried, and left.
+% -> Obviously this is very bloated and could be sped up?
+% NOTE: This method currently assumed 60bpm, but could be easily changed by
+% adding another variable
+function delay = findDelay7(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug)
+% NOTE: This method currently assumed 60bpm, but could be easily changed by
+% adding another variable
+% WARNING: DO NOT RUN DEBUG MODE IN A LOOP
+
+% smooth the quantity
+[sTimeVal,sQuantity] = meanSmooth(timeVal,quantity,smoothRange);
+[sTimeVal,sQuantity] = derivSmooth(sTimeVal,sQuantity,smoothRange,fps);
+
 delay = findDelay2(sQuantity,lineNum,sTimeVal,fps,npinterpH,debug);
+end
+
+
+
+
+
+function [sTimeVal,sQuantity] = meanSmooth(timeVal,quantity,smoothRange)
+% totWidth = 2*smoothRange+1;
+
+% center average
+sQuantity = quantity;
+for ii = (smoothRange+1):(length(quantity)-smoothRange)
+    II = (-smoothRange:smoothRange)+ii;
+    sQuantity(ii) = mean(quantity(II));
+end
+
+% forward average
+% sQuantity = zeros(length(quantity)-smoothRange,1);
+% for qi = 1:length(sQuantity)   % Smoothing
+%     sQuantity(qi) = mean(quantity(qi:qi+smoothRange));
+% end
+
+sTimeVal = timeVal(1:length(sQuantity));
+end
+
+function [sTimeVal,sQuantity] = derivSmooth(timeVal,quantity,smoothRange,fps)
+totWidth = 2*smoothRange;
+
+% Finding a moving backwards derivative
+qderiv = zeros(size(quantity));
+for ii = 1:length(quantity)-totWidth
+    rI = (1:totWidth)+ii-1;
+    pf = polyfit(timeVal(rI),quantity(rI),1);
+    qderiv(ii+totWidth) = pf(1);
+end
+
+% Using derivative to find value
+sQuantity = zeros(size(quantity));
+sQuantity(1:totWidth) = mean(quantity(1:totWidth))*ones(1,totWidth);
+for ii = totWidth+1:length(quantity)
+    dt = timeVal(ii)-timeVal(ii-1);
+    sQuantity(ii) = qderiv(ii)*dt + sQuantity(ii-1);
+end
+
+% Adjusting time since we used a backwards derivative
+sTimeVal = timeVal-(2*smoothRange)/fps;
 end
 
 
@@ -566,3 +668,10 @@ Ltxt = ["Raw Data","Max Slope","0 slope - peak","pre-slope",...
     "Mid-pt","Front slope","Final Point"];
 legend(Ltxt,'location','best')
 end
+
+
+
+
+
+
+
