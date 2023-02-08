@@ -35,6 +35,10 @@ vidName = string({vidName(:).name}');
 
 % Video Initialization
 numFrames = length(vidName);
+
+% Adding directory to vidName so that data can be on external HD
+vidName = fullfile(directory,vidName);
+
 % Preallocate memory
 frame = imread(vidName(1)); % could also use importdata, but from my 
                             % testing, imread is slightly faster
