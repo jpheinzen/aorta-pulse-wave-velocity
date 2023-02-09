@@ -81,15 +81,12 @@ end
 % TODO:
 %   Finish Header
 
+% This should be a number 1-5 corresponding to one of the 5 sub-methods in
+% methods 2 and 3 (not used in 3 because it is not optimized). 
+% I recommend using 4 or 5
+subMethodNum = 4;   
+
 smoothRange = round(fps*smoothFactor/100);
-
-% Flipping if the pulse goes down for some reason...
-if median(quantity) > mean(quantity)
-    fprintf('line %i was flipped\n',lineNum)
-    % flipping while maintaining old mean
-    quantity = -quantity + 2*mean(quantity);
-end
-
 
 % 4/6 smooth 1; 4 is slower but generally more accurate than 6
 % 5/7 smooth 2; 5 is slower but generally more accurate than 7
@@ -97,8 +94,9 @@ switch methodNum
     case 1
         delay = findDelay1(quantity,lineNum,timeVal,fps,npinterpH,debug);
     case 2
-        delay = findDelay2(quantity,lineNum,timeVal,fps,npinterpH,debug);
-    case 3
+        delay = findDelay2(quantity,lineNum,timeVal,fps,npinterpH,debug,subMethodNum);
+    case 3      % Pretty bad code now, NOT recommended
+        warning('You should REALLY use method 2 instead of 3. This method is NOT optimized like method 2 is')
         delay = findDelay3(quantity,lineNum,timeVal,fps,npinterpH,debug);
     case 4
         % Same as (1), but smoothes the data first - Uses a double
@@ -107,7 +105,7 @@ switch methodNum
     case 5
         % Same as (2), but smoothes the data first - Uses a double
         % derivative method
-        delay = findDelay5(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug);
+        delay = findDelay5(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug,subMethodNum);
     case 6
         % Same as (1), but smoothes the data first - Uses a mean then
         % derivative method
@@ -115,7 +113,7 @@ switch methodNum
     case 7
         % Same as (2), but smoothes the data first - Uses a mean then
         % derivative method
-        delay = findDelay7(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug);
+        delay = findDelay7(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug,subMethodNum);
     otherwise
         error('findDelay:incorrectmethodNum', ...
             'findDelay methodNum is set to %i, which is not valid.', ...
@@ -124,11 +122,6 @@ end
 end
 
 %% --------------------------------------------------------------------- %%
-function [x,y] = intersect2lines(m1,y1,m2,y2)
-    x = (y2-y1)/(m1-m2);
-    y = m1*x+y1;
-end
-
 % WARNING: DO NOT RUN DEBUG MODE IN A LOOP
 % Simplest way to find line delay:
 %   Find intersection of preslope and pulse rise slope
@@ -139,51 +132,23 @@ function delay = findDelay1(quantity,lineNum,timeVal,fps,npinterpH,debug)
 % adding another variable
 % WARNING: DO NOT RUN DEBUG MODE IN A LOOP
 
-deriv1 = zeros(length(timeVal),1);
-for ii = npinterpH+1:length(timeVal)-npinterpH
-    p = polyfit(timeVal(ii-npinterpH:ii+npinterpH),quantity(ii-npinterpH:ii+npinterpH),1);
-    deriv1(ii) = p(1);
-end
+quantity = flipData(quantity,lineNum);
 
-[~,i1] = max(deriv1);
-i2 = i1;
+[iMaxSlope, iPeak, ~] = initialValues(timeVal, quantity, npinterpH);
 
-while deriv1(i2) >=0
-    i2 = i2+1;
-end
-if deriv1(i2-1) < abs(deriv1(i2))
-    i2 = i2-1;
-end
+[prei1, prei2, preSlope, preY] = prePulse(timeVal, quantity, fps, iMaxSlope);
 
-prei1 = i2 - 1.5*fps;
-prei2 = prei1+fps;
-if prei1 < 1
-    prei1 = 1;
-end
-
-p = polyfit(timeVal(prei1:prei2),quantity(prei1:prei2),1);
-preSlope = p(1);
-preY = p(2);
-
-% ytarget = quantity(i1)-(quantity(i2)-quantity(i1))/2;
-ytarget = (mean(quantity(prei1:prei2)) + 3*quantity(i1))/4;
-ilow = round(i1-(i2-i1)/2);
-[~,imid] = min(abs(quantity(ilow:i1)-ytarget));    % finds y-pos just below i1
-imid = imid + ilow;
-%     imid = round((i1+i2)/2);
-irange2H = 25;
-p = polyfit(timeVal(imid-irange2H:imid+irange2H),quantity(imid-irange2H:imid+irange2H),1);
-
-[x,y] = intersect2lines(p(1),p(2),preSlope,preY);
-
-[~,ifinal] = min(abs(timeVal-x));
+ilow = round(iMaxSlope-(iPeak-iMaxSlope)/2);
+[ifinal, imid, polyCoeffs, yPt] = ...
+    slopeIntersect(timeVal, quantity, fps, prei1, prei2, preSlope, preY, iMaxSlope, ilow);
 
 delay = timeVal(ifinal);
 
 if debug
-    debug1(lineNum, timeVal, quantity, i1, i2, prei1, preSlope,...
-        preY, imid, p, ifinal, y)
+    debug1(timeVal, quantity, lineNum,  iMaxSlope, iPeak, prei1, preSlope,...
+        preY, imid, polyCoeffs, ifinal, yPt)
 end
+
 end
 
 % ----------------------------------------------------------------------- %
@@ -194,139 +159,127 @@ end
 % -> Obviously this is very bloated and could be sped up?
 % NOTE: This method currently assumed 60bpm, but could be easily changed by
 % adding another variable
-function delay = findDelay2(quantity,lineNum,timeVal,fps,npinterpH,debug)
+function delay = findDelay2(quantity,lineNum,timeVal,fps,npinterpH,debug,subMethodNum)
 % NOTE: This method currently assumed 60bpm, but could be easily changed by
 % adding another variable
 % WARNING: DO NOT RUN DEBUG MODE IN A LOOP
 
-deriv1 = zeros(length(timeVal),1);
-for ii = npinterpH+1:length(timeVal)-npinterpH
-    p = polyfit(timeVal(ii-npinterpH:ii+npinterpH),quantity(ii-npinterpH:ii+npinterpH),1);
-    deriv1(ii) = p(1);
-end
+quantity = flipData(quantity,lineNum);
 
-[~,i1] = max(deriv1);
+[iMaxSlope, iPeak, deriv1] = initialValues(timeVal, quantity, npinterpH);
 
-i2 = i1;
-while deriv1(i2) >0            % 0 on right side
-    i2 = i2+1;
-end
-if deriv1(i2-1) < abs(deriv1(i2))
-    i2 = i2-1;
-end
+[prei1, prei2, preSlope, preY] = prePulse(timeVal, quantity, fps, iMaxSlope);
+%----------
 
-i7 = i1;
-while deriv1(i7) > 0           % 0 on left side
-    i7 = i7-1;
-end
-if deriv1(i7+1) < abs(deriv1(i7))
-    i7 = i7+1;
-end
 
 %----------
 
-i5 = 2*i1-i2;
-i3 = i5+npinterpH/2;            % 1st guess using log assumption
-
-% ytarget = (deriv1(i1)+deriv1(i7))/2;
-% [~,imid] = min(abs(deriv1(i7:i1)-ytarget));    % finds y-pos between i1 and i7
-ytarget = (quantity(i1)+quantity(i7))/2;
-[~,imid] = min(abs(quantity(i7:i1)-ytarget));    % finds y-pos between i1 and i7
-imid = imid + i7;
-%     imid = round((i1+i7)/2);
-
-%----------
-% finding info about pre-pulse
-% use i1 instead of i2...??
-prei1 = i2 - 1.55*fps;
-prei2 = prei1+fps;
-if prei1 < 1
-    prei1 = 1;
+if debug
+    loopInds = 1:5;        % so that you can see all possible methods
+else
+    % To only run the one you need - speeds up postProcessing a lot
+    loopInds = subMethodNum;    
 end
 
-p = polyfit(timeVal(prei1:prei2),quantity(prei1:prei2),1);
-preSlope = p(1);
-preY = p(2);
+for iLoop = loopInds
+    switch iLoop
+        case 1      % 1st guess using log assumption
+            i5 = 2*iMaxSlope-iPeak;
+            iLogAssump = i5+npinterpH/2;
+% -----------
+        case 2      % 2nd guess using left march to pre-slope
+            i0 = iMaxSlope;
+            while deriv1(i0) >= preSlope && i0 >= 1   % marching left
+                i0 = i0-1;
+            end
+            if abs(deriv1(i0+1)-preSlope) < abs(abs(deriv1(i0))-preSlope)
+                i0 = i0+1;
+            end
+%             iLMPreSlope = i0 + npinterpH;
+            iLMPreSlope = i0;
+% -----------
+        case 3      % 3rd guess using slope match to pre-slope
+            ilow = iMaxSlope;
+            while deriv1(ilow) > 0           % 0 on left side
+                ilow = ilow-1;
+            end
+            if deriv1(ilow+1) < abs(deriv1(ilow))
+                ilow = ilow+1;
+            end
 
-TEMP = preY - 1.5*std(quantity(prei1:prei2));
-TEMP1 = preY - 1.5*std(quantity(prei1:prei2));
-%----------
-i0 = i1;
-while deriv1(i0) >= preSlope && deriv1(i0) >= 1   % marching left
-    i0 = i0-1;
+            [iIntersect, imid, ~, ~] = ...
+                slopeIntersect(timeVal, quantity, fps, prei1, prei2, preSlope, preY, iMaxSlope, ilow);
+%             iInterPS = iIntersect + npinterpH;
+            iInterPS = iIntersect;
+% -----------
+        case 4      % 4th guess using fine gradient left-march to 0 from max slope pt
+            deriv2 = zeros(iMaxSlope,1);
+            npinterpH2 = round(0.03*fps);
+            for ii = npinterpH2+1:iMaxSlope-npinterpH2
+                p = polyfit(timeVal(ii-npinterpH2:ii+npinterpH2),...
+                    quantity(ii-npinterpH2:ii+npinterpH2),1);
+                deriv2(ii) = p(1);
+            end
+
+            iSSLM20 = iMaxSlope;
+            while deriv2(iSSLM20) >= 0           % 0 on left side
+                iSSLM20 = iSSLM20-1;
+            end
+            if deriv2(iSSLM20+1) < abs(deriv2(iSSLM20))
+                iSSLM20 = iSSLM20+1;
+            end
+% -----------
+        case 5      % 5th guess using fine gradient right-march to 0
+            deriv3 = zeros(iMaxSlope,1);
+            npinterpH2 = round(0.03*fps);
+            for ii = npinterpH2+1:iMaxSlope-npinterpH2
+                p = polyfit(timeVal(ii-npinterpH2:ii+npinterpH2),...
+                    quantity(ii-npinterpH2:ii+npinterpH2),1);
+                deriv3(ii) = p(1);
+            end
+
+            [~,i9] = min(deriv3);
+
+            iSSRM20 = i9;
+            while deriv3(iSSRM20) <=0            % 0 on right side
+                iSSRM20 = iSSRM20+1;
+            end
+            if abs(deriv3(iSSRM20-1)) < abs(deriv1(iSSRM20))
+                iSSRM20 = iSSRM20-1;
+            end
+% -----------
+        otherwise
+            error('subMethodNum need to be between 1 and 5 inclusive. It is set to %i',subMethodNum)
+    end
 end
-if abs(deriv1(i0+1)-preSlope) < abs(abs(deriv1(i0))-preSlope)
-    i0 = i0+1;
-end
-i4 = i0 + npinterpH;            % 2nd guess using left march to pre-slope
-
-%----------
-% line fit around midpt
-irange2H = 25;
-p = polyfit(timeVal(imid-irange2H:imid+irange2H),deriv1(imid-irange2H:imid+irange2H),1);
-
-[x,~] = intersect2lines(p(1),p(2),0,preSlope);
-
-[~,i6] = min(abs(timeVal-x));
-i6 = i6 + npinterpH;            % 3rd guess using slope match to pre-slope
 
 
-
-%----------
-deriv2 = zeros(length(timeVal),1);
-npinterpH2 = round(0.03*fps);
-for ii = npinterpH2+1:length(timeVal)-npinterpH2
-    p = polyfit(timeVal(ii-npinterpH2:ii+npinterpH2),...
-            quantity(ii-npinterpH2:ii+npinterpH2),1);
-    deriv2(ii) = p(1);
+switch subMethodNum
+    case 1      % 1st guess using log assumption
+        ifinal = iLogAssump;
+    case 2      % 2nd guess using left march to pre-slope
+        ifinal = iLMPreSlope;
+    case 3      % 3rd guess using slope match to pre-slope
+        ifinal = iInterPS;
+    case 4      % 4th guess using fine gradient left-march to 0 from max slope pt
+        ifinal = iSSLM20;
+    case 5      % 5th guess using fine gradient right-march to 0
+        ifinal = iSSRM20;
+    otherwise
+        error('subMethodNum need to be between 1 and 5 inclusive. It is set to %i',subMethodNum)
 end
 
-i8 = i1;
-while deriv2(i8) >= 0           % 0 on left side
-    i8 = i8-1;
-end
-if deriv2(i8+1) < abs(deriv2(i8))
-    i8 = i8+1;                  % 4th guess using small slope to 0
-end
-%-----------
-deriv3 = zeros(i1,1);
-npinterpH2 = round(0.03*fps);
-for ii = npinterpH2+1:i1-npinterpH2
-    p = polyfit(timeVal(ii-npinterpH2:ii+npinterpH2),...
-            quantity(ii-npinterpH2:ii+npinterpH2),1);
-    deriv3(ii) = p(1);
-end
 
-[~,i9] = min(deriv3);
-
-i10 = i9;
-while deriv3(i10) <=0            % 0 on right side
-    i10 = i10+1;
-end
-if abs(deriv3(i10-1)) < abs(deriv1(i10))
-    i10 = i10-1;
-end
-
-%-----------
-
-%     ifinal = round((i3+i3)/2);
-% ifinal = i4;
-% ifinal = i6;
-ifinal = i8;
-% ifinal = i10;
-
-
-
-try
+if ifinal > 0 && ifinal <= length(timeVal)
     delay = timeVal(ifinal);
-catch
-    delay = 0;
+else
+    delay = nan;
     fprintf('lineNum = %i\n\n\n',lineNum)
 end
 
-if debug
-    debug2(lineNum, timeVal, quantity, i1, i2, prei1, preSlope,...
-        preY, prei2, TEMP, TEMP1, imid, i3, i4, i6, i8, i10, ifinal)
+if debug && false
+    debug2(timeVal, quantity, lineNum, iMaxSlope, iPeak, prei1, preSlope,...
+        preY, prei2, imid, iLogAssump, iLMPreSlope, iInterPS, iSSLM20, iSSRM20, ifinal);
 end
 end
 
@@ -340,20 +293,22 @@ end
 function delay = findDelay3(quantity,lineNum,timeVal,fps,npinterpH,debug)
 % WARNING: DO NOT RUN DEBUG MODE IN A LOOP
 
+quantity = flipData(quantity,lineNum);
+
 deriv1 = zeros(length(timeVal),1);
 for ii = npinterpH+1:length(timeVal)-npinterpH
     p = polyfit(timeVal(ii-npinterpH:ii+npinterpH),quantity(ii-npinterpH:ii+npinterpH),1);
     deriv1(ii) = p(1);
 end
 
-[~,i1] = max(deriv1);
+[~,iMaxSlope] = max(deriv1);
 
-i2 = find(deriv1(i1:end) < 0,1)+i1-1;       % 0 on right side
-if abs(deriv1(i2-1)) < abs(deriv1(i2))
-    i2 = i2-1;
+iPeak = find(deriv1(iMaxSlope:end) < 0,1)+iMaxSlope-1;       % 0 on right side
+if abs(deriv1(iPeak-1)) < abs(deriv1(iPeak))
+    iPeak = iPeak-1;
 end
 
-i7 = find(deriv1(1:i1) < 0,1,'last');       % 0 on left side
+i7 = find(deriv1(1:iMaxSlope) < 0,1,'last');       % 0 on left side
 if abs(deriv1(i7+1)) < abs(deriv1(i7))
     i7 = i7+1;
 end
@@ -362,17 +317,17 @@ end
 
 %----------
 
-i5 = 2*i1-i2;
-i3 = i5+npinterpH/2;            % 1st guess using log assumption
+i5 = 2*iMaxSlope-iPeak;
+iLogAssump = i5+npinterpH/2;            % 1st guess using log assumption
 
-ytarget = (deriv1(i1)+deriv1(i7))/2;
-[~,imid] = min(abs(deriv1(i7:i1)-ytarget));    % finds y-pos between i1 and i7
+ytarget = (deriv1(iMaxSlope)+deriv1(i7))/2;
+[~,imid] = min(abs(deriv1(i7:iMaxSlope)-ytarget));    % finds y-pos between iMaxSlope and i7
 imid = imid + i7;
-%     imid = round((i1+i7)/2);
+%     imid = round((iMaxSlope+i7)/2);
 
 %----------
 % finding info about pre-pulse
-prei1 = i2 - 1.55*fps;
+prei1 = iPeak - 1.55*fps;
 prei2 = prei1+fps;
 if prei1 < 1
     prei1 = 1;
@@ -381,17 +336,14 @@ end
 p = polyfit(timeVal(prei1:prei2),quantity(prei1:prei2),1);
 preSlope = p(1);
 preY = p(2);
-
-TEMP = preY - 2*std(quantity(prei1:prei2));
-TEMP1 = preY - 1.5*std(quantity(prei1:prei2));
 %----------
 
 % marching left
-i0 = find(deriv1(1:i1) < 0 | deriv1(1:i1) < 1,1,'last');
+i0 = find(deriv1(1:iMaxSlope) < 0 | deriv1(1:iMaxSlope) < 1,1,'last');
 if abs(deriv1(i0+1)-preSlope) < abs(abs(deriv1(i0))-preSlope)
     i0 = i0+1;
 end
-i4 = i0 + npinterpH;            % 2nd guess using left march to pre-slope
+iLMPreSlope = i0 + npinterpH;            % 2nd guess using left march to pre-slope
 
 %----------
 % line fit around midpt
@@ -400,8 +352,8 @@ p = polyfit(timeVal(imid-irange2H:imid+irange2H),deriv1(imid-irange2H:imid+irang
 
 [x,~] = intersect2lines(p(1),p(2),0,preSlope);
 
-[~,i6] = min(abs(timeVal-x));
-i6 = i6 + npinterpH;            % 3rd guess using slope match to pre-slope
+[~,iInterPS] = min(abs(timeVal-x));
+iInterPS = iInterPS + npinterpH;            % 3rd guess using slope match to pre-slope
 
 
 
@@ -415,16 +367,16 @@ for ii = npinterpH2+1:length(timeVal)-npinterpH2
 end
 
 % 0 on left side
-i8 = find(deriv2(1:i1) < 0,1,'last');
-if abs(deriv2(i8+1)) < abs(deriv2(i8))
-    i8 = i8+1;                  % 4th guess using small slope to 0
+iSSLM20 = find(deriv2(1:iMaxSlope) < 0,1,'last');
+if abs(deriv2(iSSLM20+1)) < abs(deriv2(iSSLM20))
+    iSSLM20 = iSSLM20+1;                  % 4th guess using small slope to 0
 end
 
 % ------------
 
-deriv3 = zeros(i1,1);
+deriv3 = zeros(iMaxSlope,1);
 npinterpH2 = round(0.03*fps);
-for ii = npinterpH2+1:i1-npinterpH2
+for ii = npinterpH2+1:iMaxSlope-npinterpH2
     p = polyfit(timeVal(ii-npinterpH2:ii+npinterpH2),...
             quantity(ii-npinterpH2:ii+npinterpH2),1);
     deriv3(ii) = p(1);
@@ -433,17 +385,17 @@ end
 [~,i9] = min(deriv3);
 
 % 0 on right side
-i10 = find(deriv3(i9:end) > 0,1)+i9-1; 
-if abs(deriv3(i10-1)) < abs(deriv1(i10))
-    i10 = i10-1;
+iSSRM20 = find(deriv3(i9:end) > 0,1)+i9-1; 
+if abs(deriv3(iSSRM20-1)) < abs(deriv1(iSSRM20))
+    iSSRM20 = iSSRM20-1;
 end
 
 %-----------
 
-%     ifinal = round((i3+i3)/2);
-% ifinal = i4;
-% ifinal = i6;
-ifinal = i10;
+%     ifinal = round((iLogAssump+iLogAssump)/2);
+% ifinal = iLMPreSlope;
+% ifinal = iInterPS;
+ifinal = iSSRM20;
 
 
 
@@ -455,8 +407,8 @@ catch
 end
 
 if debug
-    debug2(lineNum, timeVal, quantity, i1, i2, prei1, preSlope,...
-        preY, prei2, TEMP, TEMP1, imid, i3, i4, i6, i8, i10, ifinal)
+    debug2(timeVal, quantity, lineNum, iMaxSlope, iPeak, prei1, preSlope,...
+        preY, prei2, imid, iLogAssump, iLMPreSlope, iInterPS, iSSLM20, iSSRM20, ifinal);
 end
 end
 
@@ -488,7 +440,7 @@ end
 % -> Obviously this is very bloated and could be sped up?
 % NOTE: This method currently assumed 60bpm, but could be easily changed by
 % adding another variable
-function delay = findDelay5(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug)
+function delay = findDelay5(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug,subMethodNum)
 % NOTE: This method currently assumed 60bpm, but could be easily changed by
 % adding another variable
 % WARNING: DO NOT RUN DEBUG MODE IN A LOOP
@@ -497,7 +449,7 @@ function delay = findDelay5(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,d
 [sTimeVal,sQuantity] = derivSmooth(timeVal,quantity,smoothRange,fps);
 [sTimeVal,sQuantity] = derivSmooth(sTimeVal,sQuantity,smoothRange,fps);
 
-delay = findDelay2(sQuantity,lineNum,sTimeVal,fps,npinterpH,debug);
+delay = findDelay2(sQuantity,lineNum,sTimeVal,fps,npinterpH,debug,subMethodNum);
 end
 
 % ----------------------------------------------------------------------- %
@@ -528,7 +480,7 @@ end
 % -> Obviously this is very bloated and could be sped up?
 % NOTE: This method currently assumed 60bpm, but could be easily changed by
 % adding another variable
-function delay = findDelay7(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug)
+function delay = findDelay7(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug,subMethodNum)
 % NOTE: This method currently assumed 60bpm, but could be easily changed by
 % adding another variable
 % WARNING: DO NOT RUN DEBUG MODE IN A LOOP
@@ -537,12 +489,19 @@ function delay = findDelay7(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,d
 [sTimeVal,sQuantity] = meanSmooth(timeVal,quantity,smoothRange);
 [sTimeVal,sQuantity] = derivSmooth(sTimeVal,sQuantity,smoothRange,fps);
 
-delay = findDelay2(sQuantity,lineNum,sTimeVal,fps,npinterpH,debug);
+delay = findDelay2(sQuantity,lineNum,sTimeVal,fps,npinterpH,debug,subMethodNum);
 end
 
 
 
-
+function quantity = flipData(quantity,lineNum)
+% Flipping if the pulse goes down for some reason...
+if median(quantity) > mean(quantity)
+    fprintf('line %i was flipped\n',lineNum)
+    % flipping while maintaining old mean
+    quantity = -quantity + 2*mean(quantity);
+end
+end
 
 function [sTimeVal,sQuantity] = meanSmooth(timeVal,quantity,smoothRange)
 % totWidth = 2*smoothRange+1;
@@ -587,48 +546,33 @@ sTimeVal = timeVal-(2*smoothRange)/fps;
 end
 
 
-function debug2(lineNum, timeVal, quantity, i1, i2, prei1, preSlope,...
-    preY, prei2, TEMP, TEMP1, imid, i3, i4, i6, i8, i10, ifinal)
+function debug2(timeVal, quantity, lineNum, iMaxSlope, iPeak, prei1, preSlope,...
+    preY, prei2, imid, iLogAssump, iLMPreSlope, iInterPS, iSSLM20, iSSRM20, ifinal)
+stdDevUp = mean(quantity(prei1:prei2)) + 1.5*std(quantity(prei1:prei2));
+stdDevDown = mean(quantity(prei1:prei2)) - 1.5*std(quantity(prei1:prei2));
+
 MS = 10;
 figure(lineNum)
 hold on;
 plot(timeVal,quantity)
-plot(timeVal(i1),quantity(i1),'r.','markersize',MS)
-plot(timeVal(i2),quantity(i2),'g.','markersize',MS)
+plot(timeVal(iMaxSlope),quantity(iMaxSlope),'r.','markersize',MS)
+plot(timeVal(iPeak),quantity(iPeak),'g.','markersize',MS)
 
-% i2 instead of end
+% iPeak instead of end
 xx = linspace(timeVal(prei1),timeVal(end),1000);
 plot(xx,polyval([preSlope,preY],xx))
 plot(timeVal(prei2),quantity(prei2),'k.','markersize',MS)
-yline(TEMP)
-yline(TEMP1)
+yline(stdDevUp)
+yline(stdDevDown)
 
 plot(timeVal(imid),quantity(imid),'b.','markersize',MS)
 
-plot(timeVal(i3),quantity(i3),'y.','markersize',10)
-
-plot(timeVal(i4),quantity(i4),'c.','markersize',10)
-
-plot(timeVal(i6),quantity(i6),'m.','markersize',10)
-
-%     xx = linspace(timeVal(round(i1-1.5*(i2-i1))),timeVal(i2),1000);
-%     plot(xx,polyval(p,xx),'m')
-
-
-
-
-
-%     plot(timeVal,deriv1+90)
-%     plot(timeVal,deriv2+90)
-%     plot(timeVal(1:length(deriv3)),deriv3+90)
-
-plot(timeVal(i8),quantity(i8),'r*','markersize',MS)
-%     plot(timeVal(i8),deriv2(i8)+90,'r.','markersize',MS)
-plot(timeVal(i10),quantity(i10),'g*','markersize',MS)
-
+plot(timeVal(iLogAssump),quantity(iLogAssump),'y.','markersize',10)
+plot(timeVal(iLMPreSlope),quantity(iLMPreSlope),'c.','markersize',10)
+plot(timeVal(iInterPS),quantity(iInterPS),'m.','markersize',10)
+plot(timeVal(iSSLM20),quantity(iSSLM20),'r*','markersize',MS)
+plot(timeVal(iSSRM20),quantity(iSSRM20),'g*','markersize',MS)
 plot(timeVal(ifinal),quantity(ifinal),'k*','markersize',MS)
-
-
 
 Ltxt = ["Raw Data","Max Slope","0 slope - peak","pre-slope",...
     "Right-most point of pre-slope",...
@@ -643,30 +587,84 @@ Ltxt = ["Raw Data","Max Slope","0 slope - peak","pre-slope",...
 legend(Ltxt,'location','best')
 end
 
-function debug1(lineNum, timeVal, quantity, i1, i2, prei1, preSlope,...
-    preY, imid, p, ifinal, y)
+function debug1(timeVal, quantity, lineNum,  iMaxSlope, iPeak, prei1, preSlope,...
+        preY, imid, polyCoeffs, ifinal, yPt)
 MS = 10;
 figure(lineNum)
 hold on;
 plot(timeVal,quantity)
-plot(timeVal(i1),quantity(i1),'r.','markersize',MS)
-plot(timeVal(i2),quantity(i2),'g.','markersize',MS)
+plot(timeVal(iMaxSlope),quantity(iMaxSlope),'r.','markersize',MS)
+plot(timeVal(iPeak),quantity(iPeak),'g.','markersize',MS)
 
 
-xx = linspace(timeVal(prei1),timeVal(i2),1000);
+xx = linspace(timeVal(prei1),timeVal(iPeak),1000);
 plot(xx,polyval([preSlope,preY],xx))
 
 plot(timeVal(imid),quantity(imid),'b.','markersize',MS)
 
 
-xx = linspace(timeVal(round(i2-1.5*(i2-i1))),timeVal(i2),1000);
-plot(xx,polyval(p,xx),'m')
+xx = linspace(timeVal(round(iPeak-1.5*(iPeak-iMaxSlope))),timeVal(iPeak),1000);
+plot(xx,polyval(polyCoeffs,xx),'m')
 
-plot(timeVal(ifinal),y,'k.','markersize',MS)
+plot(timeVal(ifinal),yPt,'k.','markersize',MS)
 
 Ltxt = ["Raw Data","Max Slope","0 slope - peak","pre-slope",...
     "Mid-pt","Front slope","Final Point"];
 legend(Ltxt,'location','best')
+end
+
+
+function [x,y] = intersect2lines(m1,y1,m2,y2)
+    x = (y2-y1)/(m1-m2);
+    y = m1*x+y1;
+end
+
+function [iMaxSlope, iPeak, deriv1] = initialValues(timeVal, quantity, npinterpH)
+% Finding basic info needed for most methods
+deriv1 = zeros(length(timeVal),1);
+for ii = npinterpH+1:length(timeVal)-npinterpH
+    p = polyfit(timeVal(ii-npinterpH:ii+npinterpH),quantity(ii-npinterpH:ii+npinterpH),1);
+    deriv1(ii) = p(1);
+end
+
+[~,iMaxSlope] = max(deriv1);
+
+iPeak = iMaxSlope;
+while deriv1(iPeak) >=0      % 0 on right side
+    iPeak = iPeak+1;
+end
+if deriv1(iPeak-1) < abs(deriv1(iPeak))
+    iPeak = iPeak-1;
+end
+end
+
+function [prei1, prei2, preSlope, preY] = prePulse(timeVal, quantity, fps, iMaxSlope)
+% finding info about pre-pulse
+% use peak instead of maxSlope...??
+prei1 = iMaxSlope - 1.55*fps;
+prei2 = prei1+fps;
+if prei1 < 1
+    prei1 = 1;
+end
+
+p = polyfit(timeVal(prei1:prei2),quantity(prei1:prei2),1);
+preSlope = p(1);
+preY = p(2);
+end
+
+function [iIntersect, imid, polyCoeffs, yPt] = ...
+    slopeIntersect(timeVal, quantity, fps, prei1, prei2, preSlope, preY, iMaxSlope, ilow)
+% Finding slope on pulse, intersect with pre-pulse slope
+ytarget = (mean(quantity(prei1:prei2)) + 3*quantity(iMaxSlope))/4;
+[~,imid] = min(abs(quantity(ilow:iMaxSlope)-ytarget));    % finds y-pos between maxSlope and ytarget
+imid = imid + ilow;   % Have to do this since the min was indexed from ilow
+
+irange2H = round(0.0208*fps);   % gives 25 for 1200 fps
+polyCoeffs = polyfit(timeVal(imid-irange2H:imid+irange2H),quantity(imid-irange2H:imid+irange2H),1);
+
+[xPt,yPt] = intersect2lines(polyCoeffs(1),polyCoeffs(2),preSlope,preY);
+
+[~,iIntersect] = min(abs(timeVal-xPt));
 end
 
 

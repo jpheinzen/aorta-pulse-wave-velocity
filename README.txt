@@ -57,7 +57,7 @@ To run example:
 7. 	Run postProcessing.m. This may take a bit with large numbers of frames. It took me ~4mins with all of the frames.
 
 You're done! You should end up with a plot (using findDelay1) the looks like examplePlot.svg. This just shows that you may not need to use all of the data in a video to do the analysis. You can save a lot of time if you are smart about it. 
-Now, try using findDelay2 instead of findDelay1 to see the differences in the 2 methods (you should only have to run postProcessing.m! This is why we saved the data from gatherData.m as a .mat file!!). Try findDelay 3 if you're feeling truly spicy.
+Now, try using findDelay2 instead of findDelay1 to see the differences in the 2 methods (you should only have to run postProcessing.m! This is why we saved the data from gatherData.m as a .mat file!!). Try findDelay 3 if you're feeling truly spicy, but this method is now highly unoptimized.
 
 --------------------------------------------------------
 

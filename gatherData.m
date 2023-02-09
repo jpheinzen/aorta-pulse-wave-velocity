@@ -169,9 +169,10 @@ fps = 1200;
 wt = [2,1.5,1.25]; 
 lineLength = 80;        % Length of lines across region
 folderName = 'Test7-34in-2000_single_pulse\ts3_000002';
+folderName = 'D:\PWV\Test7 (12-14-22)\Test7-1in-2000-single_pulse';
 
 nMaxFrames = inf;
-deleteRegion = false;
+deleteRegion = true;
 
 % kMeans
 k = 2;                  % Number of colors

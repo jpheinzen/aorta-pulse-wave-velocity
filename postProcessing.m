@@ -81,9 +81,10 @@
 
 npinterpH = 200;
 
-
-distanceinIn = 0.75;    % UPDATE THIS WITH DIAMETER OF TUBING
+distanceinIn = 1;    % UPDATE THIS WITH DIAMETER OF TUBING
 distanceinM = 0.0254*distanceinIn;
+
+methodNum = 5;  % must be a number 1-7 - see findDelay
 
 % load('example.mat')
 
@@ -114,21 +115,21 @@ try % would throw error if cLines doesn't have the fields
 catch
 end
 
-%% Analyze data
+%% Scaling
+pix2MScaling = findScaling(im,distanceinM);
 
-%% Finding delay - Method 1 (simple method)
+%% Finding delay
 
 delay = zeros(NUMLINES,1);
 tic
 for NUM = 1:NUMLINES
     
-    delay(NUM) = findDelay(cLines(NUM).wtd,NUM,timeVal,fps,npinterpH,5);
+    delay(NUM) = findDelay(cLines(NUM).wtd,NUM,timeVal,fps,npinterpH,methodNum);
 
     printTime(NUM,NUMLINES,toc)
 %     printProgress(NUM,NUMLINES,'Finding delay')
 end
-%% Scaling
-pix2MScaling = findScaling(im,distanceinM);
+
 
 %% Plot to find PWV
 
@@ -159,11 +160,12 @@ ylabel('time(s)')
 clearvars xx TEMP TEMP1 TEMP2
 
 %% Debugging delay
-
-%X = 102.243;
-%X = 207.657;
-X = 416.728;
+close all
+methodNum = 5;
+X = 432.191;
 [~,lineNum] = min(abs(posVal-X));
-findDelay(cLines(lineNum).wtd,lineNum,timeVal,npinterpH,fps,1,true);
-%clearvars X lineNum
+
+findDelay(cLines(lineNum).wtd,lineNum,timeVal,fps,npinterpH,methodNum,false);
+
+clearvars X lineNum
 

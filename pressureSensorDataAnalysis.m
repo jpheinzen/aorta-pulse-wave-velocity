@@ -57,7 +57,7 @@ filePath = ...
 % "20221214 Penrose tests/Run12 - 0.625in single taped 1200.mat"];
 % pSenseDistM = (31+19.5+19)/100;      % update this with distance in m between sensors
 pSenseDistM = (31)/100;      % update this with distance in m between sensors
-methodNum = 5;          % 1 to 5 --> different methods
+methodNum = 4;          % 1 to 5 --> different methods
 npinterpH = 200;        % probably keep around 200; another switch
 debug = true;           % true if you want to see graphs made by findDelay
 smoothFactor = 5;       % can change for methods 4 and 5. The larger the 
