@@ -68,10 +68,10 @@ while repeat
                 pullFromFigure(linesToHold,numLinesToHold, lineIndex);
         case {'q','Q'}  % go to last plotted line number
             lineIndex = goToLine(lineIndex,linesToHold, ...
-                numLinesToHold, 'forward');
+                numLinesToHold, 'backward');
         case {'e','E'}  % go to next plotted line number
             lineIndex = goToLine(lineIndex,linesToHold, ...
-                numLinesToHold, 'backward');
+                numLinesToHold, 'forward');forward
         case {'f','F'}  % go to inputted number
             lineIndex = inputLineNum(fh,NUMLINES,lineIndex);
         case {'r','R'}  % run task

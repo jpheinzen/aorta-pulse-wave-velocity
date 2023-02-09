@@ -277,7 +277,7 @@ else
     fprintf('lineNum = %i\n\n\n',lineNum)
 end
 
-if debug && false
+if debug
     debug2(timeVal, quantity, lineNum, iMaxSlope, iPeak, prei1, preSlope,...
         preY, prei2, imid, iLogAssump, iLMPreSlope, iInterPS, iSSLM20, iSSRM20, ifinal);
 end

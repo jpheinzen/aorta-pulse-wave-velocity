@@ -95,7 +95,7 @@ im = mov.cdata;
 %% Finding pixel distance from start
 
 % These should be all the variables that you need?
-clearvars -except cLines timeVal NUMLINES fps numFrames skele thta npinterpH distanceinM im
+clearvars -except cLines timeVal NUMLINES fps numFrames skele thta npinterpH distanceinM im methodNum
 
 posVal = getPosition(skele, NUMLINES);
 
@@ -104,7 +104,7 @@ posVal = getPosition(skele, NUMLINES);
 %% Adding and simplifying vars
 timeVal = (1:numFrames)/fps;
 % No longer need skele
-clearvars -except cLines timeVal posVal NUMLINES fps numFrames skele thta npinterpH distanceinM im
+clearvars -except cLines timeVal posVal NUMLINES fps numFrames skele thta npinterpH distanceinM im methodNum
 
 % in case you only want a few lines 
 % cLines = cLines([5:7,NUMLINES-2:NUMLINES]);
@@ -164,8 +164,7 @@ close all
 methodNum = 5;
 X = 432.191;
 [~,lineNum] = min(abs(posVal-X));
-
-findDelay(cLines(lineNum).wtd,lineNum,timeVal,fps,npinterpH,methodNum,false);
+findDelay(cLines(lineNum).wtd,lineNum,timeVal,fps,npinterpH,methodNum,true);
 
 clearvars X lineNum
 

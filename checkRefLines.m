@@ -18,7 +18,7 @@ folderName = 'Test7-34in-2000_single_pulse\ts3_000002';
 lineLength = 100;
 
 % import video initialization data
-[~,vidName, numFrames, type, maxCVal, height, width] = vidInit(folderName);
+[vidName, numFrames,skele] = initialization4RefLines(folderName);
 
 dispHelp;
 
@@ -272,7 +272,36 @@ end
 
 
 
+function [vidName, numFrames,skele] = initialization4RefLines(folderName)
+k = 2;                  % Number of colors
+aortaIndex = 1;         % Color cluster to pull from (1 being highest mean
+                        % intensity, 2 being next highest, etc)
 
+minBL = 16;             % Minimum branch length for skeletonization
+                        % lower number will take longer, but may give
+                        % better answer if you over-estimated. Probably
+                        % best if you make this a power of 2.
+scaleFactor = 1.1;      % changes how much minBL is multiplied by in 
+                        % findSkeleton
+
+[mov,vidName, numFrames, ~, maxCVal, height, width] = vidInit(folderName);
+
+im = mov.cdata;
+
+inputMeanColors = maxCVal*ones(1,1,3);
+[means,assignments,~] = kMeans(im,k,inputMeanColors);
+
+[index] = getColor(aortaIndex,means);
+
+Lim = zeros(height,width,1,'logical');
+Lim(assignments == index) = 1;
+
+Lim2 = findAorta(Lim,height,width);
+Lim3 = imfill(Lim2,'holes');
+
+[skeleim, endpts] = findSkeleton(Lim3, minBL,scaleFactor);
+skele = orderPts(skeleim,endpts);
+end
 
 
 
