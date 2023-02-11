@@ -76,7 +76,7 @@
 
 %% Main
 %% --------------------------------------------------------------------- %%
-%% Read File
+%% Initialization
 % ccc
 
 npinterpH = 200;
@@ -101,6 +101,7 @@ smoothMethod = 'loess';
 
 % load('example.mat')
 
+%% SETUP
 % NOTE: Ignore the 3 function handle warnings -> The following don't work sometimes?
 clear lineType lineColor ptType
 im = mov.cdata;
@@ -108,7 +109,8 @@ im = mov.cdata;
 %% Finding pixel distance from start
 
 % These should be all the variables that you need?
-clearvars -except cLines timeVal NUMLINES fps numFrames skele thta npinterpH distanceinM im methodNum
+clearvars -except cLines timeVal NUMLINES fps numFrames skele thta ...
+    npinterpH distanceinM im methodNum smoothFactor smoothMethod
 
 posVal = getPosition(skele, NUMLINES);
 
@@ -117,7 +119,8 @@ posVal = getPosition(skele, NUMLINES);
 %% Adding and simplifying vars
 timeVal = (1:numFrames)/fps;
 % No longer need skele
-clearvars -except cLines timeVal posVal NUMLINES fps numFrames skele thta npinterpH distanceinM im methodNum
+clearvars -except cLines timeVal posVal NUMLINES fps numFrames skele thta ...
+    npinterpH distanceinM im methodNum smoothFactor smoothMethod
 
 % in case you only want a few lines 
 % cLines = cLines([5:7,NUMLINES-2:NUMLINES]);
