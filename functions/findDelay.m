@@ -1,4 +1,4 @@
-function delay = findDelay(quantity,lineNum,timeVal,fps,npinterpH,methodNum,debug,smoothFactor)
+function delay = findDelay(quantity,lineNum,timeVal,fps,npinterpH,methodNum,debug,smoothFactor,smoothMethod)
 arguments
     quantity 
     lineNum % Not really used for much besides figure number, and debugging
@@ -8,6 +8,15 @@ arguments
     methodNum (1,1) = 1;
     debug (1,1) {mustBeNumericOrLogical} = false;
     smoothFactor (1,1) {mustBePositive} = 5;
+    % supplying smoothing method for findDelay methods 8 or 9. Do 'help smooth'
+    %   for more information
+    %     'moving'   - Moving average (default)
+    %     'lowess'   - Lowess (linear fit)
+    %     'loess'    - Loess (quadratic fit)
+    %     'sgolay'   - Savitzky-Golay
+    %     'rlowess'  - Robust Lowess (linear fit)
+    %     'rloess'   - Robust Loess (quadratic fit)
+    smoothMethod {mustBeText} = 'loess';
 end
 
 %% Info:
@@ -84,12 +93,15 @@ end
 % This should be a number 1-5 corresponding to one of the 5 sub-methods in
 % methods 2 and 3 (not used in 3 because it is not optimized). 
 % I recommend using 4 or 5
-subMethodNum = 4;   
+subMethodNum = 4;
 
+% ----------------------------------------------------------------------- %
 smoothRange = round(fps*smoothFactor/100);
 
-% 4/6 smooth 1; 4 is slower but generally more accurate than 6
-% 5/7 smooth 2; 5 is slower but generally more accurate than 7
+% 4/6/8/10 smooth 1; 4 is slower but generally more accurate than 6. 8/10 is
+%   built-in, so the fastest and most flexible. 10 is 2x smooth
+% 5/7/9/11 smooth 2; 5 is slower but generally more accurate than 7. 9/11 is
+%   built-in, so the fastest and most flexible. 11 is 2x smooth
 switch methodNum
     case 1
         delay = findDelay1(quantity,lineNum,timeVal,fps,npinterpH,debug);
@@ -114,6 +126,22 @@ switch methodNum
         % Same as (2), but smoothes the data first - Uses a mean then
         % derivative method
         delay = findDelay7(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug,subMethodNum);
+    case 8
+        % Same as (1), but smoothes the data first - Uses built in MATLAB
+        % method
+        delay = findDelay8(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug,smoothMethod);
+    case 9
+        % Same as (2), but smoothes the data first - Uses built in MATLAB
+        % method
+        delay = findDelay9(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug,smoothMethod,subMethodNum);
+    case 10
+        % Same as (1), but smoothes the data TWICE first - Uses built in MATLAB
+        % method
+        delay = findDelay10(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug,smoothMethod);
+    case 11
+        % Same as (2), but smoothes the data TWICE first - Uses built in MATLAB
+        % method
+        delay = findDelay11(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug,smoothMethod,subMethodNum);
     otherwise
         error('findDelay:incorrectmethodNum', ...
             'findDelay methodNum is set to %i, which is not valid.', ...
@@ -286,8 +314,7 @@ end
 % ----------------------------------------------------------------------- %
 
 % WARNING: DO NOT RUN DEBUG MODE IN A LOOP
-% An attempt to speed up (but not debloat) findDelay2.
-%  NOT TESTED - might not work in its current form
+% generally, DO NOT USE THIS ONE
 % NOTE: This method currently assumed 60bpm, but could be easily changed by
 % adding another variable
 function delay = findDelay3(quantity,lineNum,timeVal,fps,npinterpH,debug)
@@ -415,9 +442,6 @@ end
 % ----------------------------------------------------------------------- %
 
 % WARNING: DO NOT RUN DEBUG MODE IN A LOOP
-% More Complicated way to find the delay of lines.
-%   Many different ways to try to find delay were tried, and left.
-% -> Obviously this is very bloated and could be sped up?
 % NOTE: This method currently assumed 60bpm, but could be easily changed by
 % adding another variable
 function delay = findDelay4(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug)
@@ -435,9 +459,6 @@ end
 % ----------------------------------------------------------------------- %
 
 % WARNING: DO NOT RUN DEBUG MODE IN A LOOP
-% More Complicated way to find the delay of lines.
-%   Many different ways to try to find delay were tried, and left.
-% -> Obviously this is very bloated and could be sped up?
 % NOTE: This method currently assumed 60bpm, but could be easily changed by
 % adding another variable
 function delay = findDelay5(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug,subMethodNum)
@@ -455,9 +476,6 @@ end
 % ----------------------------------------------------------------------- %
 
 % WARNING: DO NOT RUN DEBUG MODE IN A LOOP
-% More Complicated way to find the delay of lines.
-%   Many different ways to try to find delay were tried, and left.
-% -> Obviously this is very bloated and could be sped up?
 % NOTE: This method currently assumed 60bpm, but could be easily changed by
 % adding another variable
 function delay = findDelay6(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug)
@@ -475,9 +493,6 @@ end
 % ----------------------------------------------------------------------- %
 
 % WARNING: DO NOT RUN DEBUG MODE IN A LOOP
-% More Complicated way to find the delay of lines.
-%   Many different ways to try to find delay were tried, and left.
-% -> Obviously this is very bloated and could be sped up?
 % NOTE: This method currently assumed 60bpm, but could be easily changed by
 % adding another variable
 function delay = findDelay7(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug,subMethodNum)
@@ -490,6 +505,71 @@ function delay = findDelay7(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,d
 [sTimeVal,sQuantity] = derivSmooth(sTimeVal,sQuantity,smoothRange,fps);
 
 delay = findDelay2(sQuantity,lineNum,sTimeVal,fps,npinterpH,debug,subMethodNum);
+end
+
+% ----------------------------------------------------------------------- %
+
+% WARNING: DO NOT RUN DEBUG MODE IN A LOOP
+% NOTE: This method currently assumed 60bpm, but could be easily changed by
+% adding another variable
+function delay = findDelay8(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug,smoothMethod)
+% NOTE: This method currently assumed 60bpm, but could be easily changed by
+% adding another variable
+% WARNING: DO NOT RUN DEBUG MODE IN A LOOP
+
+% smooth the quantity
+sQuantity = smooth(quantity,smoothRange,smoothMethod);
+
+delay = findDelay1(sQuantity,lineNum,timeVal,fps,npinterpH,debug);
+end
+
+% ----------------------------------------------------------------------- %
+
+% WARNING: DO NOT RUN DEBUG MODE IN A LOOP
+% NOTE: This method currently assumed 60bpm, but could be easily changed by
+% adding another variable
+function delay = findDelay9(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug,smoothMethod,subMethodNum)
+% NOTE: This method currently assumed 60bpm, but could be easily changed by
+% adding another variable
+% WARNING: DO NOT RUN DEBUG MODE IN A LOOP
+
+% smooth the quantity
+sQuantity = smooth(quantity,smoothRange,smoothMethod);
+
+delay = findDelay2(sQuantity,lineNum,timeVal,fps,npinterpH,debug,subMethodNum);
+end
+
+% ----------------------------------------------------------------------- %
+
+% WARNING: DO NOT RUN DEBUG MODE IN A LOOP
+% NOTE: This method currently assumed 60bpm, but could be easily changed by
+% adding another variable
+function delay = findDelay10(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug,smoothMethod)
+% NOTE: This method currently assumed 60bpm, but could be easily changed by
+% adding another variable
+% WARNING: DO NOT RUN DEBUG MODE IN A LOOP
+
+% smooth the quantity
+sQuantity = smooth(quantity,smoothRange,smoothMethod);
+sQuantity = smooth(sQuantity,smoothRange,smoothMethod);
+
+delay = findDelay1(sQuantity,lineNum,timeVal,fps,npinterpH,debug);
+end
+% ----------------------------------------------------------------------- %
+
+% WARNING: DO NOT RUN DEBUG MODE IN A LOOP
+% NOTE: This method currently assumed 60bpm, but could be easily changed by
+% adding another variable
+function delay = findDelay11(quantity,lineNum,timeVal,fps,npinterpH,smoothRange,debug,smoothMethod,subMethodNum)
+% NOTE: This method currently assumed 60bpm, but could be easily changed by
+% adding another variable
+% WARNING: DO NOT RUN DEBUG MODE IN A LOOP
+
+% smooth the quantity
+sQuantity = smooth(quantity,smoothRange,smoothMethod);
+sQuantity = smooth(sQuantity,smoothRange,smoothMethod);
+
+delay = findDelay2(sQuantity,lineNum,timeVal,fps,npinterpH,debug,subMethodNum);
 end
 
 

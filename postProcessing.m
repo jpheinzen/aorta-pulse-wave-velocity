@@ -84,7 +84,20 @@ npinterpH = 200;
 distanceinIn = 1;    % UPDATE THIS WITH DIAMETER OF TUBING
 distanceinM = 0.0254*distanceinIn;
 
-methodNum = 5;  % must be a number 1-7 - see findDelay
+methodNum = 8;  % must be a number 1-11 - see findDelay.
+                % I recommend 8,9,10, or 11
+smoothFactor = 5;       % can change for methods 4 and 5. The larger the 
+                        %   number, the more smooth the data. 4-10 is good
+
+% supplying smoothing method for findDelay methods 8 or 9. Do 'help smooth'
+%   for more information
+%     'moving'   - Moving average (default)
+%     'lowess'   - Lowess (linear fit)
+%     'loess'    - Loess (quadratic fit)
+%     'sgolay'   - Savitzky-Golay
+%     'rlowess'  - Robust Lowess (linear fit)
+%     'rloess'   - Robust Loess (quadratic fit)
+smoothMethod = 'loess';
 
 % load('example.mat')
 
@@ -124,7 +137,8 @@ delay = zeros(NUMLINES,1);
 tic
 for NUM = 1:NUMLINES
     
-    delay(NUM) = findDelay(cLines(NUM).wtd,NUM,timeVal,fps,npinterpH,methodNum);
+    delay(NUM) = findDelay(cLines(NUM).wtd,NUM,timeVal,fps,npinterpH,...
+        methodNum,false,smoothFactor,smoothMethod);
 
     printTime(NUM,NUMLINES,toc)
 %     printProgress(NUM,NUMLINES,'Finding delay')
@@ -137,7 +151,7 @@ close all
 starti = 1;
 
 figure(100001)
-if false  % all points
+if true  % all points
     p = polyfit(posVal(starti:end),delay(starti:end),1);
     plot(posVal(starti:end),delay(starti:end),'k.')
 else    % Throw out 45 deg angles and things more than 1 std dev away from avg
@@ -161,10 +175,10 @@ clearvars xx TEMP TEMP1 TEMP2
 
 %% Debugging delay
 close all
-methodNum = 5;
+methodNum = 9;
 X = 432.191;
 [~,lineNum] = min(abs(posVal-X));
-findDelay(cLines(lineNum).wtd,lineNum,timeVal,fps,npinterpH,methodNum,true);
+findDelay(cLines(lineNum).wtd,lineNum,timeVal,fps,npinterpH,methodNum,true,smoothFactor,smoothMethod);
 
 clearvars X lineNum
 
