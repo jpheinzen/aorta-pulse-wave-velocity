@@ -187,7 +187,8 @@ scaleFactor = 1.1;      % changes how much minBL is multiplied by in
                         % findSkeleton
 
 %% Video Initialization
-[mov,vidName, numFrames, type, maxCVal, height, width] = vidInit(folderName);
+[mov,vidName, numFramesinFile, type, maxCVal, height, width] = vidInit(folderName);
+numFrames = min(numFramesinFile,nMaxFrames);
 
 %% getting rid of bad pts; if applicable
 % You only need to do this as a last resort if you are getting unwanted
@@ -246,7 +247,7 @@ clearvars skeleim skeleim1 imcheck num index row col ii
 [cLines] = mainS(NUMLINES, p1e, p2e, thta, vidName,nMaxFrames,wt);
 
 %%
-clearvars p1e p2e
+clearvars p1e p2e numFramesinFile
 
 %% --------------------------------------------------------------------- %%
 % I do this so you can run the whole file without running the examples.
