@@ -1,4 +1,4 @@
-function cLines = mainS(NUMLINES, p1e, p2e, thta, vidName,nMaxFrames,wt)
+function cLines = mainS(NUMLINES, p1e, p2e, thta, vidName, nMaxFrames, wt)
 [height,width,depth] = size(imread(vidName(1)));
 if depth==1
     BW = true;          % .tif is black and white
@@ -6,7 +6,8 @@ else
     BW = false;         % .tif is color
 end
 
-numFrames = length(vidName);
+% find the number of frames, limited by the user or the number of images
+numFrames = min(length(vidName),nMaxFrames);
 
 cLines = struct('pti',zeros(2,2),'npts',0,'wtd',zeros(1,numFrames));
 cLines = repmat(cLines, NUMLINES,1);
