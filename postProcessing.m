@@ -81,23 +81,36 @@
 
 npinterpH = 200;
 
-distanceinIn = 1;    % UPDATE THIS WITH DIAMETER OF TUBING
+distanceinIn = 5/8;    % UPDATE THIS WITH DIAMETER OF TUBING
 distanceinM = 0.0254*distanceinIn;
 
-methodNum = 8;  % must be a number 1-11 - see findDelay.
+methodNum = 9;  % must be a number 1-11 - see findDelay.
                 % I recommend 8,9,10, or 11
 smoothFactor = 5;       % can change for methods 4 and 5. The larger the 
-                        %   number, the more smooth the data. 4-10 is good
+                        %   number, the more smooth the data. 3-10 is good
+                        %   for noisy data, 1/2 are better if data is nice
 
-% supplying smoothing method for findDelay methods 8 or 9. Do 'help smooth'
-%   for more information
-%     'moving'   - Moving average (default)
-%     'lowess'   - Lowess (linear fit)
-%     'loess'    - Loess (quadratic fit)
-%     'sgolay'   - Savitzky-Golay
-%     'rlowess'  - Robust Lowess (linear fit)
-%     'rloess'   - Robust Loess (quadratic fit)
-smoothMethod = 'loess';
+    % supplying smoothing method for findDelay methods 8 or 9. Do 'help
+    %   smoothdata' for more information
+    % 'movmean'     - (default) smooths by averaging over each window of A.
+    %                 This method can reduce periodic trends in data.
+    % 'movmedian'   - smooths by taking the median over each window of A.
+    %                 This method can reduce periodic trends in the
+    %                 presence of outliers.
+    % 'gaussian'    - smooths by filtering A with a Gaussian window.
+    % 'lowess'      - smooths by computing a linear regression in each
+    %                 window of A. This method is more computationally
+    %                 expensive but results in fewer discontinuities.
+    % 'loess'       - is similar to 'lowess', but uses local quadratic
+    %                 regressions.
+    % 'rlowess'     - smooths data using 'lowess' but is more robust to
+    %                 outliers at the cost of more computation.
+    % 'rloess'      - smooths data using 'loess' but is more robust to
+    %                 outliers at the cost of more computation.
+    % 'sgolay'      - smooths A using a Savitzky-Golay filter, which may be
+    %                 more effective than other methods for data that
+    %                 varies rapidly.
+smoothMethod = 'lowess';
 
 % load('example.mat')
 
@@ -154,7 +167,7 @@ close all
 starti = 1;
 
 figure(100001)
-if true  % all points
+if false  % all points
     p = polyfit(posVal(starti:end),delay(starti:end),1);
     plot(posVal(starti:end),delay(starti:end),'k.')
 else    % Throw out 45 deg angles and things more than 1 std dev away from avg
@@ -178,9 +191,10 @@ clearvars xx TEMP TEMP1 TEMP2
 
 %% Debugging delay
 close all
-methodNum = 9;
+methodNum = 11;
 X = 432.191;
 [~,lineNum] = min(abs(posVal-X));
+% lineNum = 1;
 findDelay(cLines(lineNum).wtd,lineNum,timeVal,fps,npinterpH,methodNum,true,smoothFactor,smoothMethod);
 
 clearvars X lineNum

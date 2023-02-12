@@ -71,7 +71,7 @@ while repeat
                 numLinesToHold, 'backward');
         case {'e','E'}  % go to next plotted line number
             lineIndex = goToLine(lineIndex,linesToHold, ...
-                numLinesToHold, 'forward');forward
+                numLinesToHold, 'forward');
         case {'f','F'}  % go to inputted number
             lineIndex = inputLineNum(fh,NUMLINES,lineIndex);
         case {'r','R'}  % run task
